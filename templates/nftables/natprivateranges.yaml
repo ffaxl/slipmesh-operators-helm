@@ -1,0 +1,12 @@
+{{- $ns := include "slipmesh.namespace" . }}
+{{- range .Values.nftables.natPrivateRanges }}
+---
+apiVersion: slipmesh.net/v1alpha1
+kind: NatPrivateRange
+metadata:
+  name: {{ .name }}
+  namespace: {{ $ns }}
+spec:
+  cidrs:
+    {{- toYaml .cidrs | nindent 4 }}
+{{- end }}

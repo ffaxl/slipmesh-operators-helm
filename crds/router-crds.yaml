@@ -1,0 +1,387 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: routernodes.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: RouterNode
+    plural: routernodes
+    shortNames:
+    - rnode
+    singular: routernode
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for RouterNodeSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              Router identity for one node: its OSPF/BGP loopback address (`router-lo` dummy interface).
+              `metadata.name` must equal the Kubernetes Node name, same convention as MeshNode. The loopback
+              address is drawn from a `RouterPool` (`status.loopback`); `spec.loopback` is an escape hatch
+              to pin an existing address.
+            properties:
+              loopback:
+                description: |-
+                  Escape hatch: pin this node to a specific loopback address instead of drawing one from a
+                  `RouterPool`. Must fall inside some `RouterPool`'s configured range.
+                format: ipv4
+                nullable: true
+                type: string
+              routerLabel:
+                description: |-
+                  Short, router-facing identity used to build the `ibgp_<router_label>` BIRD protocol name
+                  on every peer, independent of the Kubernetes Node name. Must be unique across all
+                  RouterNodes (checked at reconcile time).
+                maxLength: 10
+                minLength: 1
+                pattern: ^[a-zA-Z0-9_-]+$
+                type: string
+            required:
+            - routerLabel
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                default: []
+                items:
+                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating details about the transition. This may be an empty string.
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              loopback:
+                format: ipv4
+                nullable: true
+                type: string
+              pool:
+                description: |-
+                  Which `RouterPool` `loopback` was drawn from - `None` if `spec.loopback` was pinned
+                  outside every configured pool's range.
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: RouterNode
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: bypasssources.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: BypassSource
+    plural: bypasssources
+    shortNames:
+    - bsrc
+    singular: bypasssource
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.node
+      name: Node
+      type: string
+    - jsonPath: .status.prefixCount
+      name: Prefixes
+      type: integer
+    - jsonPath: .status.lastResolvedTime
+      name: LastResolved
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for BypassSourceSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              A router-node's bypass-exit prefix set, computed from `include` minus `exclude` - both the
+              same four-kind shape (asn/literal/geoip/dns), resolved the same way, so an exclusion can
+              itself be "everything RIPE assigned to country X" or "everything ASN Y announces", not just
+              literal blocks. Every MeshNode's endpoint is always punched out on top of `exclude`,
+              regardless of what it resolves to - self/cluster addresses must never be blackholed.
+            properties:
+              exclude:
+                default: []
+                items:
+                  description: |-
+                    One bypass-prefix source, resolved into concrete CIDRs by `resolver.rs`: `asn` via
+                    `whois -h whois.radb.net -i origin ASxxxx`, `literal` verbatim, `geoip` via RIPEstat's
+                    country-resource-list.
+                  properties:
+                    asns:
+                      items:
+                        type: string
+                      nullable: true
+                      type: array
+                    country:
+                      nullable: true
+                      type: string
+                    hostnames:
+                      description: |-
+                        "dns" only - resolved via a live A-record lookup at resolve time, on the same
+                        startup/hourly/on-change schedule as everything else. Whole list shares `label`.
+                      items:
+                        type: string
+                      nullable: true
+                      type: array
+                    kind:
+                      description: |-
+                        "asn" | "literal" | "geoip" | "dns" - validated in resolver.rs, not by the schema (avoids
+                        CRD schema complexity of a tagged enum for a four-way, mostly-optional-fields shape).
+                      type: string
+                    label:
+                      nullable: true
+                      type: string
+                    prefixes:
+                      items:
+                        properties:
+                          label:
+                            nullable: true
+                            type: string
+                          net:
+                            format: cidr
+                            type: string
+                        required:
+                        - net
+                        type: object
+                      nullable: true
+                      type: array
+                  required:
+                  - kind
+                  type: object
+                type: array
+              include:
+                items:
+                  description: |-
+                    One bypass-prefix source, resolved into concrete CIDRs by `resolver.rs`: `asn` via
+                    `whois -h whois.radb.net -i origin ASxxxx`, `literal` verbatim, `geoip` via RIPEstat's
+                    country-resource-list.
+                  properties:
+                    asns:
+                      items:
+                        type: string
+                      nullable: true
+                      type: array
+                    country:
+                      nullable: true
+                      type: string
+                    hostnames:
+                      description: |-
+                        "dns" only - resolved via a live A-record lookup at resolve time, on the same
+                        startup/hourly/on-change schedule as everything else. Whole list shares `label`.
+                      items:
+                        type: string
+                      nullable: true
+                      type: array
+                    kind:
+                      description: |-
+                        "asn" | "literal" | "geoip" | "dns" - validated in resolver.rs, not by the schema (avoids
+                        CRD schema complexity of a tagged enum for a four-way, mostly-optional-fields shape).
+                      type: string
+                    label:
+                      nullable: true
+                      type: string
+                    prefixes:
+                      items:
+                        properties:
+                          label:
+                            nullable: true
+                            type: string
+                          net:
+                            format: cidr
+                            type: string
+                        required:
+                        - net
+                        type: object
+                      nullable: true
+                      type: array
+                  required:
+                  - kind
+                  type: object
+                type: array
+              node:
+                description: RouterNode (= Kubernetes Node name) this bypass belongs to.
+                type: string
+            required:
+            - include
+            - node
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                default: []
+                items:
+                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating details about the transition. This may be an empty string.
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastResolvedTime:
+                description: |-
+                  Only updated on a *successful* resolve - a failed attempt leaves this (and
+                  `observedGeneration`) untouched, so the next trigger retries without waiting out a full
+                  extra refresh interval. RFC3339 (`jiff::Timestamp::to_string`).
+                format: date-time
+                nullable: true
+                type: string
+              observedGeneration:
+                description: |-
+                  Spec generation as of the last *successful* resolve - lags behind `metadata.generation`
+                  after a spec edit until the next successful re-resolve.
+                format: int64
+                nullable: true
+                type: integer
+              prefixCount:
+                format: int32
+                minimum: 0.0
+                nullable: true
+                type: integer
+            type: object
+        required:
+        - spec
+        title: BypassSource
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: routerpools.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: RouterPool
+    plural: routerpools
+    shortNames:
+    - rpool
+    singular: routerpool
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.network
+      name: Network
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for RouterPoolSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              A pool of loopback addresses that `RouterNode`s draw from instead of a human hand-picking a
+              never-reused address. Namespaced, multiple instances are meaningful (like `NatPrivateRange`/
+              `MeshPool`) - e.g. to add a second range once the first fills up.
+            properties:
+              network:
+                description: |-
+                  CIDR of this pool's address range, e.g. `"172.21.0.0/24"`. `format: cidr` validates syntax
+                  only; alignment is checked in Rust (see `common::netlink::rt::parse_network_cidr`).
+                format: cidr
+                type: string
+            required:
+            - network
+            type: object
+          status:
+            nullable: true
+            properties:
+              allocated:
+                default: []
+                items:
+                  properties:
+                    owner:
+                      type: string
+                    port:
+                      description: |-
+                        Carried alongside `value` at allocation time, never recomputed later - an already-
+                        allocated owner keeps whatever port it was given even if the pool's own parameters
+                        (e.g. `MeshPoolSpec.basePort`) are edited afterward. `None` for callers with no such
+                        concept (`RouterPool`'s loopback addresses).
+                      format: int32
+                      maximum: 65535.0
+                      minimum: 0.0
+                      nullable: true
+                      type: integer
+                    value:
+                      type: string
+                  required:
+                  - owner
+                  - value
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        title: RouterPool
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+

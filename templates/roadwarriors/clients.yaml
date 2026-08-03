@@ -1,0 +1,13 @@
+{{- $ns := include "slipmesh.namespace" . }}
+{{- range .Values.roadwarriors.clients }}
+---
+apiVersion: slipmesh.net/v1alpha1
+kind: RoadWarrior
+metadata:
+  name: {{ .name }}
+  namespace: {{ $ns }}
+spec:
+  publicKey: {{ .publicKey | quote }}
+  allowedIps:
+    {{- toYaml .allowedIps | nindent 4 }}
+{{- end }}

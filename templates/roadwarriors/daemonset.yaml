@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: roadwarriors
+  namespace: {{ include "slipmesh.namespace" . }}
+  labels:
+    {{- include "slipmesh.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: roadwarriors
+  template:
+    metadata:
+      labels:
+        app: roadwarriors
+        {{- include "slipmesh.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: roadwarriors
+      hostNetwork: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      {{- toYaml .Values.roadwarriors.nodeHostnames | nindent 22 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      containers:
+        - name: roadwarriors
+          image: {{ .Values.image.roadwarriors }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_ADMIN"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ROADWARRIORS_IFACE
+              value: {{ .Values.roadwarriors.iface | quote }}
+            - name: ROADWARRIORS_ADDRESS
+              value: {{ .Values.roadwarriors.address | quote }}
+            - name: ROADWARRIORS_LISTEN_PORT
+              value: {{ .Values.roadwarriors.listenPort | quote }}
+            - name: ROADWARRIORS_HANDSHAKE_STALE
+              value: {{ .Values.roadwarriors.handshakeStaleSeconds | quote }}
+            {{- with .Values.roadwarriors.obfuscation }}
+            {{- if .jc }}
+            - name: ROADWARRIORS_OBFUSCATION_JC
+              value: {{ .jc | quote }}
+            {{- end }}
+            {{- if .jmin }}
+            - name: ROADWARRIORS_OBFUSCATION_JMIN
+              value: {{ .jmin | quote }}
+            {{- end }}
+            {{- if .jmax }}
+            - name: ROADWARRIORS_OBFUSCATION_JMAX
+              value: {{ .jmax | quote }}
+            {{- end }}
+            {{- if .s1 }}
+            - name: ROADWARRIORS_OBFUSCATION_S1
+              value: {{ .s1 | quote }}
+            {{- end }}
+            {{- if .s2 }}
+            - name: ROADWARRIORS_OBFUSCATION_S2
+              value: {{ .s2 | quote }}
+            {{- end }}
+            {{- if .h1 }}
+            - name: ROADWARRIORS_OBFUSCATION_H1
+              value: {{ .h1 | quote }}
+            {{- end }}
+            {{- if .h2 }}
+            - name: ROADWARRIORS_OBFUSCATION_H2
+              value: {{ .h2 | quote }}
+            {{- end }}
+            {{- if .h3 }}
+            - name: ROADWARRIORS_OBFUSCATION_H3
+              value: {{ .h3 | quote }}
+            {{- end }}
+            {{- if .h4 }}
+            - name: ROADWARRIORS_OBFUSCATION_H4
+              value: {{ .h4 | quote }}
+            {{- end }}
+            {{- end }}
+            - name: RUST_LOG
+              value: {{ .Values.logLevel.roadwarriors | quote }}
+          resources:
+            {{- toYaml .Values.resources.roadwarriors | nindent 12 }}

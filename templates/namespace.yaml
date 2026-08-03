@@ -1,0 +1,9 @@
+{{- if .Values.createNamespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "slipmesh.namespace" . }}
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    {{- include "slipmesh.labels" . | nindent 4 }}
+{{- end }}

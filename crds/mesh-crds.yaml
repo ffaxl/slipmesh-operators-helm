@@ -1,0 +1,361 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: meshnodes.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: MeshNode
+    plural: meshnodes
+    shortNames:
+    - mnode
+    singular: meshnode
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for MeshNodeSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              Identity of one mesh participant. `metadata.name` must equal the Kubernetes Node it runs on
+              (which may be an FQDN), but the OS-level `mesh-<label>` interface name has to fit `IFNAMSIZ`
+              (15 usable bytes; `"mesh-"` alone takes 5) - so `mesh_label` is its own short, explicit field.
+            properties:
+              endpoint:
+                description: |-
+                  Explicit reachable endpoint (IP or hostname, no port - each link supplies its own port).
+                  Omit for a node with no inbound reachability (NAT): peers render it without
+                  Endpoint/PersistentKeepalive and wait for it to initiate. Two endpoint-less nodes can
+                  never link.
+                nullable: true
+                type: string
+              meshLabel:
+                description: |-
+                  Short, mesh-facing identity used to build the `mesh-<mesh_label>` interface name on every
+                  peer, independent of the Kubernetes Node name. Must be unique across all MeshNodes
+                  (checked at reconcile time; CRD schema can't express cross-object uniqueness). Length
+                  capped at admission time.
+                maxLength: 10
+                minLength: 1
+                pattern: ^[a-zA-Z0-9_-]+$
+                type: string
+            required:
+            - meshLabel
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                default: []
+                items:
+                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating details about the transition. This may be an empty string.
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              publicKey:
+                description: |-
+                  Base64 AmneziaWG public key, deterministically derived from the node's own private key
+                  (X25519: `public = private * basepoint`). Computed by mesh itself, not declared in spec.
+                  `None` until the owning mesh has computed it.
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: MeshNode
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: meshlinks.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: MeshLink
+    plural: meshlinks
+    shortNames:
+    - mlink
+    singular: meshlink
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.nodeA
+      name: NodeA
+      type: string
+    - jsonPath: .spec.nodeB
+      name: NodeB
+      type: string
+    - jsonPath: .status.network
+      name: Network
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for MeshLinkSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              A single mesh tunnel between two `MeshNode`s. Its `/31` and port are drawn from a `MeshPool`
+              (`status.network`/`status.port`); `spec.network` is an escape hatch to pin an existing subnet.
+            properties:
+              network:
+                description: |-
+                  Escape hatch: pin this link to a specific `/31` (e.g. `"10.200.100.0/31"`) instead of
+                  drawing one from a `MeshPool`. Must fall inside some `MeshPool`'s range - the port is
+                  still derived from its position there.
+                format: cidr
+                nullable: true
+                type: string
+              nodeA:
+                description: |-
+                  MeshNode name of one end. `node_a` always takes the lower `/31` address and drives pool
+                  allocation (see `is_lower`) - field order now matters, unlike an unordered pair. This
+                  matters specifically for pinning an external, never-Kubernetes `MeshNode` (e.g. an office
+                  router) as `node_b`: no pod will ever run under its name, so it must never be elected to
+                  drive allocation the way an alphabetical tie-break could pick it by accident.
+                type: string
+              nodeB:
+                type: string
+              obfuscation:
+                properties:
+                  h1:
+                    format: int32
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  h2:
+                    format: int32
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  h3:
+                    format: int32
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  h4:
+                    format: int32
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  jc:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  jmax:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  jmin:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  s1:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  s2:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                type: object
+            required:
+            - nodeA
+            - nodeB
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                default: []
+                items:
+                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating details about the transition. This may be an empty string.
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              network:
+                format: cidr
+                nullable: true
+                type: string
+              pool:
+                description: |-
+                  Which `MeshPool` `network`/`port` were drawn from - `None` if `spec.network` was pinned
+                  outside every configured pool's range.
+                nullable: true
+                type: string
+              port:
+                format: int32
+                maximum: 65535.0
+                minimum: 0.0
+                nullable: true
+                type: integer
+            type: object
+        required:
+        - spec
+        title: MeshLink
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: meshpools.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: MeshPool
+    plural: meshpools
+    shortNames:
+    - mpool
+    singular: meshpool
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.network
+      name: Network
+      type: string
+    - jsonPath: .spec.basePort
+      name: BasePort
+      type: integer
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for MeshPoolSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              A pool of `/31` subnets (and, from each one's position, a port) that `MeshLink`s draw from.
+              Namespaced; multiple instances are meaningful, e.g. to add a second range once the first
+              fills up without touching already-allocated links.
+            properties:
+              basePort:
+                description: |-
+                  Port for the `/31` at `network` itself; each subsequent `/31` gets the next port (see
+                  `mesh_math::addressing_for`).
+                format: int32
+                maximum: 65535.0
+                minimum: 0.0
+                type: integer
+              network:
+                description: |-
+                  CIDR of this pool's address range, e.g. `"172.20.255.0/24"`. `format: cidr` validates
+                  syntax only - it doesn't check that `network` is the aligned base address of its own
+                  range, so that's checked in Rust (see `common::netlink::rt::parse_network_cidr`); an
+                  invalid pool is skipped with a warning, not a hard error.
+                format: cidr
+                type: string
+            required:
+            - basePort
+            - network
+            type: object
+          status:
+            nullable: true
+            properties:
+              allocated:
+                default: []
+                items:
+                  properties:
+                    owner:
+                      type: string
+                    port:
+                      description: |-
+                        Carried alongside `value` at allocation time, never recomputed later - an already-
+                        allocated owner keeps whatever port it was given even if the pool's own parameters
+                        (e.g. `MeshPoolSpec.basePort`) are edited afterward. `None` for callers with no such
+                        concept (`RouterPool`'s loopback addresses).
+                      format: int32
+                      maximum: 65535.0
+                      minimum: 0.0
+                      nullable: true
+                      type: integer
+                    value:
+                      type: string
+                  required:
+                  - owner
+                  - value
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        title: MeshPool
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+

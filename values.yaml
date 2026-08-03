@@ -1,0 +1,131 @@
+# slipmesh-network: mesh + router + nftables, full mesh across all listed `nodes`.
+#
+# "cni" has no separate component here: router writes /etc/cni/net.d/10-slipmesh.conflist
+# itself from the node's PodCIDR at startup, using the bridge/host-local/loopback CNI plugins
+# already shipped in /opt/cni/bin on Talos v1.8+. No Calico/Flannel involved.
+
+# Namespace is not a value here - it's whatever `-n`/`--namespace` you pass to `helm install`
+# (i.e. `.Release.Namespace`). Every resource in this chart targets that namespace explicitly,
+# so `helm install slipmesh . -n slipmesh --create-namespace` is the way to pick it.
+createNamespace: true
+
+image:
+  # Versioned, immutable tags now (ghcr.io/.../<component>:vX.Y.Z) - unlike the old floating
+  # docker.io/ffaxl/talos:<component> tags, a given version never gets republished with
+  # different content, so there's no need to force a re-pull on every restart.
+  pullPolicy: IfNotPresent
+  mesh: ghcr.io/ffaxl/slipmesh-operators/mesh:v0.1.0
+  router: ghcr.io/ffaxl/slipmesh-operators/router:v0.1.0
+  nftables: ghcr.io/ffaxl/slipmesh-operators/nftables:v0.1.0
+  roadwarriors: ghcr.io/ffaxl/slipmesh-operators/roadwarriors:v0.1.0
+
+logLevel:
+  mesh: "info,mesh=debug"
+  router: "info,router=debug"
+  nftables: "info,nftables=debug"
+  roadwarriors: "info,roadwarriors=debug"
+
+resources:
+  mesh:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 100Mi
+  router:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 100Mi
+  nftables:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  roadwarriors:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 100Mi
+
+# Every entry here becomes one MeshNode + one RouterNode; every unordered pair becomes one
+# MeshLink (full mesh). `name` must equal the Kubernetes Node object name. `endpoint` is the
+# public address peers dial in on for the WireGuard tunnel.
+#
+# Empty here on purpose: real node IPs are environment-specific and live in the gitignored
+# .values.yaml (merge with `-f .values.yaml`). Same for mesh.pool/linkObfuscation,
+# router.pool/bypassSources, and roadwarriors.nodeHostnames/address/listenPort/clients below.
+nodes: []
+
+mesh:
+  # MeshLinks draw their /31 + UDP port from this pool instead of being hand-assigned.
+  pool: {}
+
+  # Shared AmneziaWG jitter/junk-packet parameters applied to every full-mesh link.
+  obfuscation:
+    jc: 4
+    jmin: 40
+    jmax: 70
+    s1: 50
+    s2: 100
+
+  # Per-link magic header values (h1-h4), keyed by "<meshLabelA>-<meshLabelB>" in the same
+  # order the two nodes appear in `nodes` above. Required to be present (and distinct) for a
+  # link to get AmneziaWG obfuscation; a missing key means that link runs plain WireGuard.
+  # Generated once (random uint32s) per deployment - keep stable across upgrades, since
+  # changing them flaps the tunnel's handshake.
+  linkObfuscation: {}
+
+router:
+  bgpAS: 64512
+  # RouterNodes draw their OSPF/iBGP loopback address from this pool.
+  pool: {}
+
+  # Per-node VPN egress bypass lists: ASN/prefix sets routed directly instead of through the
+  # tunnel.
+  bypassSources: []
+
+nftables:
+  # Unioned into one masquerade/NAT ruleset, applied identically on every node.
+  natPrivateRanges:
+    - name: rfc1918
+      cidrs: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+roadwarriors:
+  # Server identity is self-managed, same pattern as mesh: a pod with no existing
+  # `roadwarriors-key` Secret (field `privateKey`) generates and persists one on first boot -
+  # shared across every roadwarriors pod (unlike mesh's per-node keys), so nothing to create
+  # by hand here.
+
+  # Nodes this DaemonSet schedules onto (kubernetes.io/hostname, matching `nodes[].name`
+  # above) - unlike mesh/router/nftables this isn't full-mesh, roadwarriors clients just dial
+  # whichever entry point is reachable, so it doesn't need to run everywhere.
+  nodeHostnames: []
+
+  iface: roadwarriors
+  address: ""
+  listenPort: 51820
+  handshakeStaleSeconds: 180
+  # Device-level AmneziaWG obfuscation, empty by default to stay wire-compatible with plain-
+  # WireGuard client configs (no Jc/Jmin/... lines in their .conf files).
+  obfuscation: {}
+
+  # One RoadWarrior CR per client peer. `name` must be a valid Kubernetes object name.
+  clients: []
+
+# Applied to every DaemonSet (mesh/router/nftables) verbatim - hostNetwork pods that must
+# schedule on every node regardless of taints (including control-plane nodes on a 4-node
+# full-mesh cluster with no dedicated workers).
+tolerations:
+  - operator: Exists
+
+# Optional: restrict which nodes these DaemonSets land on. Empty means "all nodes" (the
+# default, correct for a cluster whose only nodes are the full-mesh set above).
+nodeSelector: {}

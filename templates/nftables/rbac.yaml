@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nftables
+  namespace: {{ include "slipmesh.namespace" . }}
+---
+# NatPrivateRange is namespaced purely so access can be granted with an ordinary
+# namespace-scoped Role instead of a cluster-wide ClusterRole.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nftables
+  namespace: {{ include "slipmesh.namespace" . }}
+# Generated verbatim from nftables' own API calls (nftables-rbacgen) - regenerate and re-sync
+# here if the operator's code changes what it reads/writes.
+rules:
+  - apiGroups: ["slipmesh.net"]
+    resources: ["natprivateranges"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nftables
+  namespace: {{ include "slipmesh.namespace" . }}
+subjects:
+  - kind: ServiceAccount
+    name: nftables
+    namespace: {{ include "slipmesh.namespace" . }}
+roleRef:
+  kind: Role
+  name: nftables
+  apiGroup: rbac.authorization.k8s.io

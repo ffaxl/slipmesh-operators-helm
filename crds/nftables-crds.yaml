@@ -1,0 +1,42 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: natprivateranges.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: NatPrivateRange
+    plural: natprivateranges
+    shortNames:
+    - npr
+    singular: natprivaterange
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for NatPrivateRangeSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              A named group of CIDRs to masquerade on egress (e.g. the RFC1918 ranges) - `metadata.name` is
+              the group's label, not tied to any node. nftables reads every instance and unions their
+              `cidrs` into one ruleset, applied identically by every DaemonSet pod (each detects its own
+              node's default interface at apply time; TCP MSS clamping on forward is unconditional, not
+              CRD-configurable). Namespaced purely for RBAC hygiene.
+            properties:
+              cidrs:
+                items:
+                  format: cidr
+                  type: string
+                type: array
+            required:
+            - cidrs
+            type: object
+        required:
+        - spec
+        title: NatPrivateRange
+        type: object
+    served: true
+    storage: true
+

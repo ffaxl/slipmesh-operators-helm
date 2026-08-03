@@ -1,0 +1,32 @@
+{{- $root := . }}
+{{- $ns := include "slipmesh.namespace" . }}
+{{- $nodes := .Values.nodes }}
+{{- range $i, $a := $nodes }}
+{{- range $j, $b := $nodes }}
+{{- if lt $i $j }}
+---
+apiVersion: slipmesh.net/v1alpha1
+kind: MeshLink
+metadata:
+  name: {{ $a.meshLabel }}-{{ $b.meshLabel }}
+  namespace: {{ $ns }}
+spec:
+  nodeA: {{ $a.name }}
+  nodeB: {{ $b.name }}
+  {{- $key := printf "%s-%s" $a.meshLabel $b.meshLabel }}
+  {{- $ob := get $root.Values.mesh.linkObfuscation $key }}
+  {{- if $ob }}
+  obfuscation:
+    jc: {{ $root.Values.mesh.obfuscation.jc }}
+    jmin: {{ $root.Values.mesh.obfuscation.jmin }}
+    jmax: {{ $root.Values.mesh.obfuscation.jmax }}
+    s1: {{ $root.Values.mesh.obfuscation.s1 }}
+    s2: {{ $root.Values.mesh.obfuscation.s2 }}
+    h1: {{ $ob.h1 | int64 }}
+    h2: {{ $ob.h2 | int64 }}
+    h3: {{ $ob.h3 | int64 }}
+    h4: {{ $ob.h4 | int64 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

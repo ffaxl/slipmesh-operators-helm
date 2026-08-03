@@ -1,0 +1,7 @@
+apiVersion: slipmesh.net/v1alpha1
+kind: RouterPool
+metadata:
+  name: {{ .Values.router.pool.name }}
+  namespace: {{ include "slipmesh.namespace" . }}
+spec:
+  network: {{ .Values.router.pool.network | quote }}

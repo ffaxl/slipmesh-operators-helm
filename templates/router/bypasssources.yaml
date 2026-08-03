@@ -1,0 +1,17 @@
+{{- $ns := include "slipmesh.namespace" . }}
+{{- range .Values.router.bypassSources }}
+---
+apiVersion: slipmesh.net/v1alpha1
+kind: BypassSource
+metadata:
+  name: {{ .node }}-bypass
+  namespace: {{ $ns }}
+spec:
+  node: {{ .node }}
+  include:
+    {{- toYaml .include | nindent 4 }}
+  {{- if .exclude }}
+  exclude:
+    {{- toYaml .exclude | nindent 4 }}
+  {{- end }}
+{{- end }}

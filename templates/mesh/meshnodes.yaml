@@ -1,0 +1,14 @@
+{{- $ns := include "slipmesh.namespace" . }}
+{{- range .Values.nodes }}
+---
+apiVersion: slipmesh.net/v1alpha1
+kind: MeshNode
+metadata:
+  name: {{ .name }}
+  namespace: {{ $ns }}
+spec:
+  meshLabel: {{ .meshLabel | quote }}
+  {{- if .endpoint }}
+  endpoint: {{ .endpoint | quote }}
+  {{- end }}
+{{- end }}

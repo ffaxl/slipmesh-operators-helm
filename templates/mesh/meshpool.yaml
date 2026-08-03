@@ -1,0 +1,8 @@
+apiVersion: slipmesh.net/v1alpha1
+kind: MeshPool
+metadata:
+  name: {{ .Values.mesh.pool.name }}
+  namespace: {{ include "slipmesh.namespace" . }}
+spec:
+  network: {{ .Values.mesh.pool.network | quote }}
+  basePort: {{ .Values.mesh.pool.basePort }}

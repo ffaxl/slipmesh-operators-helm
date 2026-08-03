@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: router
+  namespace: {{ include "slipmesh.namespace" . }}
+---
+# Only genuinely cluster-scoped resources here - Node and ServiceCIDR are Kubernetes built-ins.
+# RouterNode/BypassSource/MeshLink/MeshNode are all namespaced and granted below via an
+# ordinary Role instead.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "slipmesh.namespace" . }}-router
+rules:
+  # This node's own PodCIDR, read once at startup to render the local CNI conflist.
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
+  # The cluster's ServiceCIDR, read once at startup to redistribute it via the ANNOUNCE block.
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["servicecidrs"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "slipmesh.namespace" . }}-router
+subjects:
+  - kind: ServiceAccount
+    name: router
+    namespace: {{ include "slipmesh.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "slipmesh.namespace" . }}-router
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: router
+  namespace: {{ include "slipmesh.namespace" . }}
+# Minimal rules below are generated verbatim from router's own API calls (router-rbacgen,
+# which now also tells the Role/ClusterRole split apart via Api::namespaced vs Api::all) -
+# regenerate and re-sync here if the operator's code changes what it reads/writes.
+rules:
+  - apiGroups: ["slipmesh.net"]
+    resources: ["routernodes"]
+    verbs: ["list", "watch", "patch"]
+  - apiGroups: ["slipmesh.net"]
+    resources: ["routernodes/status"]
+    verbs: ["patch"]
+  # RouterPool: allocates/releases loopback addresses for RouterNode.
+  - apiGroups: ["slipmesh.net"]
+    resources: ["routerpools"]
+    verbs: ["list", "get"]
+  - apiGroups: ["slipmesh.net"]
+    resources: ["routerpools/status"]
+    verbs: ["update"]
+  - apiGroups: ["slipmesh.net"]
+    resources: ["bypasssources"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["slipmesh.net"]
+    resources: ["bypasssources/status"]
+    verbs: ["patch"]
+  # Read-only against mesh's CRDs - router never creates/patches these, only learns which
+  # mesh-* interfaces exist/are Ready and each node's real endpoint for bypass self-exclusion.
+  - apiGroups: ["slipmesh.net"]
+    resources: ["meshlinks", "meshnodes"]
+    verbs: ["list", "watch"]
+  # Read-only against roadwarriors' CRD - needed to redistribute connected road-warrior /32s
+  # (BIRD kernel `learn`) into OSPF/iBGP.
+  - apiGroups: ["slipmesh.net"]
+    resources: ["roadwarriors"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: router
+  namespace: {{ include "slipmesh.namespace" . }}
+subjects:
+  - kind: ServiceAccount
+    name: router
+    namespace: {{ include "slipmesh.namespace" . }}
+roleRef:
+  kind: Role
+  name: router
+  apiGroup: rbac.authorization.k8s.io

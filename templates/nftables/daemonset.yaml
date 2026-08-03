@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nftables
+  namespace: {{ include "slipmesh.namespace" . }}
+  labels:
+    {{- include "slipmesh.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: nftables
+  template:
+    metadata:
+      labels:
+        app: nftables
+        {{- include "slipmesh.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: nftables
+      hostNetwork: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      containers:
+        - name: nftables
+          image: {{ .Values.image.nftables }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_ADMIN"]
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RUST_LOG
+              value: {{ .Values.logLevel.nftables | quote }}
+          resources:
+            {{- toYaml .Values.resources.nftables | nindent 12 }}

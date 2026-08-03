@@ -1,0 +1,11 @@
+{{- $ns := include "slipmesh.namespace" . }}
+{{- range .Values.nodes }}
+---
+apiVersion: slipmesh.net/v1alpha1
+kind: RouterNode
+metadata:
+  name: {{ .name }}
+  namespace: {{ $ns }}
+spec:
+  routerLabel: {{ .routerLabel | quote }}
+{{- end }}

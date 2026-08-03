@@ -1,0 +1,49 @@
+# Triggered by the `vX.Y.Z` tag pushed after a release commit bumping Chart.yaml's `version`/
+# `appVersion`. Packages the chart and pushes it as an OCI artifact to GHCR under
+# ghcr.io/<repo>/slipmesh-network, tagged with the release version - mirrors how
+# slipmesh-operators pushes its own images, just one artifact instead of a multi-arch matrix
+# (a Helm chart has no architecture).
+name: Release chart
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: helm lint
+        run: helm lint .
+
+      # Chart.yaml is the source of truth for the chart's own version (bumped in the release
+      # commit, same pattern as Cargo.toml's workspace.package.version) - this just fails loudly
+      # if the pushed tag doesn't actually match it, instead of silently packaging a
+      # differently-versioned chart under the tag's name.
+      - name: verify Chart.yaml version matches the tag
+        run: |
+          chart_version="v$(yq '.version' Chart.yaml)"
+          if [ "$chart_version" != "${{ github.ref_name }}" ]; then
+            echo "::error::Chart.yaml version ($chart_version) does not match tag (${{ github.ref_name }})"
+            exit 1
+          fi
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package
+        run: helm package . -d dist/
+
+      - name: Push
+        run: helm push dist/*.tgz "oci://ghcr.io/${{ github.repository }}"

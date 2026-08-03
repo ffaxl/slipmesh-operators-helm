@@ -1,0 +1,13 @@
+apiVersion: v2
+name: slipmesh-network
+description: >-
+  Full-mesh AmneziaWG overlay (mesh), BIRD OSPF/iBGP routing + bridge CNI conflist (router),
+  and NAT/masquerade firewall (nftables) for the slipmesh.net operators, deployed as
+  DaemonSets across a full mesh of Talos nodes.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/ffaxl/slipmesh-operators-helm
+sources:
+  - https://github.com/ffaxl/slipmesh-operators-helm
+  - https://github.com/ffaxl/slipmesh-operators

@@ -1,3 +1,4 @@
+{{- if .Values.roadwarriors.nodeHostnames }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -17,6 +18,10 @@ spec:
     spec:
       serviceAccountName: roadwarriors
       hostNetwork: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -95,3 +100,4 @@ spec:
               value: {{ .Values.logLevel.roadwarriors | quote }}
           resources:
             {{- toYaml .Values.resources.roadwarriors | nindent 12 }}
+{{- end }}

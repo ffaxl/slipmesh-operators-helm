@@ -8,6 +8,7 @@ would reject outright. This closes that gap in CI, offline, without a real clust
 
 Usage: helm template slipmesh . -f .ci/example-values.yaml | .ci/validate-crs.py
 """
+import ipaddress
 import sys
 
 import jsonschema
@@ -19,6 +20,30 @@ CRD_FILES = [
     "crds/nftables-crds.yaml",
     "crds/roadwarriors-crds.yaml",
 ]
+
+# "cidr" and "int32" aren't part of JSON Schema's own format vocabulary (they're OpenAPI-flavor
+# annotations schemars emits - see mesh-types' own doc comment on why), so jsonschema's stock
+# FormatChecker has no built-in validator for either and silently no-ops on them by default.
+# Without these two @checks registrations, `format: cidr`/`format: int32` in crds/*.yaml would
+# never actually be enforced here regardless of whether a FormatChecker is passed at all.
+FORMAT_CHECKER = jsonschema.FormatChecker()
+
+
+@FORMAT_CHECKER.checks("cidr", raises=ValueError)
+def _check_cidr(value):
+    if not isinstance(value, str):
+        return True
+    ipaddress.ip_network(value, strict=True)
+    return True
+
+
+@FORMAT_CHECKER.checks("int32", raises=ValueError)
+def _check_int32(value):
+    if not isinstance(value, int):
+        return True
+    if not (-(2**31) <= value <= 2**31 - 1):
+        raise ValueError(f"{value} does not fit in a signed 32-bit int")
+    return True
 
 
 def load_schemas():
@@ -48,7 +73,9 @@ def main() -> int:
             continue
         checked += 1
         try:
-            jsonschema.validate(instance=doc, schema=schemas[kind])
+            jsonschema.validate(
+                instance=doc, schema=schemas[kind], format_checker=FORMAT_CHECKER
+            )
         except jsonschema.ValidationError as e:
             failed += 1
             name = doc.get("metadata", {}).get("name", "<unnamed>")

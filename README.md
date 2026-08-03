@@ -38,7 +38,7 @@ CNI plugins already shipped in `/opt/cni/bin` on Talos v1.8+. No Calico/Flannel 
 Fill in `.values.yaml` (see template below), then install/upgrade:
 
 ```sh
-helm install slipmesh . -n slipmesh --create-namespace -f .values.yaml
+helm install slipmesh . -n slipmesh -f .values.yaml
 helm upgrade slipmesh . -n slipmesh -f .values.yaml
 ```
 
@@ -84,13 +84,14 @@ mesh:
 
   # Per-link AmneziaWG obfuscation magic numbers, keyed by "<meshLabelA>-<meshLabelB>" in the
   # same order the two nodes appear in `nodes` above (e.g. "node-a-node-b", not
-  # "node-b-node-a"). Generate distinct random uint32s per link once, then keep them stable -
-  # changing them flaps that link's handshake. Every unordered pair needs an entry, or that
-  # link runs plain (unobfuscated) WireGuard.
+  # "node-b-node-a"). Generate distinct random values per link once (each must fit a signed
+  # 32-bit int, max 2147483647), then keep them stable - changing them flaps that link's
+  # handshake. Every unordered pair needs an entry, or that link runs plain (unobfuscated)
+  # WireGuard.
   linkObfuscation:
-    node-a-node-b: { h1: 1111111111, h2: 1111111112, h3: 1111111113, h4: 1111111114 }
-    node-a-node-c: { h1: 2222222221, h2: 2222222222, h3: 2222222223, h4: 2222222224 }
-    node-b-node-c: { h1: 3333333331, h2: 3333333332, h3: 3333333333, h4: 3333333334 }
+    node-a-node-b: { h1: 111111111, h2: 111111112, h3: 111111113, h4: 111111114 }
+    node-a-node-c: { h1: 222222221, h2: 222222222, h3: 222222223, h4: 222222224 }
+    node-b-node-c: { h1: 333333331, h2: 333333332, h3: 333333333, h4: 333333334 }
 
 router:
   pool:

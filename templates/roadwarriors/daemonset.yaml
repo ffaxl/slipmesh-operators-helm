@@ -58,44 +58,6 @@ spec:
               value: {{ .Values.roadwarriors.listenPort | quote }}
             - name: ROADWARRIORS_HANDSHAKE_STALE
               value: {{ .Values.roadwarriors.handshakeStaleSeconds | quote }}
-            {{- with .Values.roadwarriors.obfuscation }}
-            {{- if .jc }}
-            - name: ROADWARRIORS_OBFUSCATION_JC
-              value: {{ .jc | quote }}
-            {{- end }}
-            {{- if .jmin }}
-            - name: ROADWARRIORS_OBFUSCATION_JMIN
-              value: {{ .jmin | quote }}
-            {{- end }}
-            {{- if .jmax }}
-            - name: ROADWARRIORS_OBFUSCATION_JMAX
-              value: {{ .jmax | quote }}
-            {{- end }}
-            {{- if .s1 }}
-            - name: ROADWARRIORS_OBFUSCATION_S1
-              value: {{ .s1 | quote }}
-            {{- end }}
-            {{- if .s2 }}
-            - name: ROADWARRIORS_OBFUSCATION_S2
-              value: {{ .s2 | quote }}
-            {{- end }}
-            {{- if .h1 }}
-            - name: ROADWARRIORS_OBFUSCATION_H1
-              value: {{ .h1 | quote }}
-            {{- end }}
-            {{- if .h2 }}
-            - name: ROADWARRIORS_OBFUSCATION_H2
-              value: {{ .h2 | quote }}
-            {{- end }}
-            {{- if .h3 }}
-            - name: ROADWARRIORS_OBFUSCATION_H3
-              value: {{ .h3 | quote }}
-            {{- end }}
-            {{- if .h4 }}
-            - name: ROADWARRIORS_OBFUSCATION_H4
-              value: {{ .h4 | quote }}
-            {{- end }}
-            {{- end }}
             - name: RUST_LOG
               value: {{ .Values.logLevel.roadwarriors | quote }}
           resources:

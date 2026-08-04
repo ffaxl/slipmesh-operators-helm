@@ -51,7 +51,10 @@ roleRef:
 # Each node's own AmneziaWG private key lives here, readable/writable by every mesh pod (all
 # run under the same ServiceAccount and already have hostNetwork+privileged node-level access
 # anyway). create/patch: a node with no existing entry generates and persists its own private
-# key on first boot.
+# key on first boot. `resourceNames` can't scope `create` (the object doesn't exist yet at
+# authorization time), so that verb is necessarily unscoped; get/patch against an
+# already-existing Secret are scoped to mesh-keys specifically, so mesh can't touch e.g.
+# roadwarriors' own key.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -60,7 +63,11 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "create", "patch"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["mesh-keys"]
+    verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

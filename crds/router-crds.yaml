@@ -295,7 +295,8 @@ spec:
                 nullable: true
                 type: integer
               prefixCount:
-                format: int32
+                format: int64
+                maximum: 4294967295.0
                 minimum: 0.0
                 nullable: true
                 type: integer
@@ -342,7 +343,7 @@ spec:
               network:
                 description: |-
                   CIDR of this pool's address range, e.g. `"172.21.0.0/24"`. `format: cidr` validates syntax
-                  only; alignment is checked in Rust (see `common::netlink::rt::parse_network_cidr`).
+                  only; alignment is checked in Rust (see `crate::cidr::parse_network_cidr`).
                 format: cidr
                 type: string
             required:
@@ -384,4 +385,58 @@ spec:
     storage: true
     subresources:
       status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: routerconfigs.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: RouterConfig
+    plural: routerconfigs
+    shortNames:
+    - rcfg
+    singular: routerconfig
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.bgpAs
+      name: BgpAs
+      type: integer
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for RouterConfigSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              Cluster-wide router settings shared identically by every node - unlike `RouterNode` (per-node
+              identity) or `RouterPool` (multiple instances meaningful, e.g. to add capacity), exactly one
+              `RouterConfig` object is expected per namespace. No status/reconcile loop: `router` reads this
+              once at startup, the same one-shot-list pattern already used for the cluster's
+              `ServiceCIDR`/this node's own `podCIDR`.
+            properties:
+              bgpAs:
+                description: |-
+                  AS number shared by the full iBGP mesh - every node's rendered BIRD config uses this same
+                  value for its local `protocol bgp ibgp_<label> { local as <bgp_as>; ... }` block. Was
+                  previously the `ROUTER_BGP_AS` env var (default 64512, a private-use AS) - moved to this
+                  CRD so changing it doesn't require rebuilding/re-templating every node's Deployment spec.
+                  `min = 1`: AS 0 is reserved/invalid (RFC 7607) - schemars' own derived `minimum` for a u32
+                  is 0 (a valid u32, just not a valid AS number), so it needs overriding here.
+                format: int64
+                maximum: 4294967295.0
+                minimum: 1.0
+                type: integer
+            required:
+            - bgpAs
+            type: object
+        required:
+        - spec
+        title: RouterConfig
+        type: object
+    served: true
+    storage: true
 

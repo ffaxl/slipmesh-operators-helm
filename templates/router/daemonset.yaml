@@ -42,8 +42,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: ROUTER_BGP_AS
-              value: {{ .Values.router.bgpAS | quote }}
             - name: RUST_LOG
               value: {{ .Values.logLevel.router | quote }}
           resources:

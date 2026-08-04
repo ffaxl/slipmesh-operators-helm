@@ -5,8 +5,8 @@ description: >-
   and NAT/masquerade firewall (nftables) for the slipmesh.net operators, deployed as
   DaemonSets across a full mesh of Talos nodes.
 type: application
-version: 0.2.0
-appVersion: "0.2.0"
+version: 0.2.1
+appVersion: "0.2.1"
 home: https://github.com/ffaxl/slipmesh-operators-helm
 sources:
   - https://github.com/ffaxl/slipmesh-operators-helm

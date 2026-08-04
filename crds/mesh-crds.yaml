@@ -153,22 +153,26 @@ spec:
               obfuscation:
                 properties:
                   h1:
-                    format: int32
+                    format: int64
+                    maximum: 4294967295.0
                     minimum: 0.0
                     nullable: true
                     type: integer
                   h2:
-                    format: int32
+                    format: int64
+                    maximum: 4294967295.0
                     minimum: 0.0
                     nullable: true
                     type: integer
                   h3:
-                    format: int32
+                    format: int64
+                    maximum: 4294967295.0
                     minimum: 0.0
                     nullable: true
                     type: integer
                   h4:
-                    format: int32
+                    format: int64
+                    maximum: 4294967295.0
                     minimum: 0.0
                     nullable: true
                     type: integer

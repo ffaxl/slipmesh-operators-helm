@@ -20,11 +20,18 @@ rules:
   - apiGroups: ["slipmesh.net"]
     resources: ["roadwarriors/status"]
     verbs: ["patch"]
+  # RoadWarriorConfig: device-level obfuscation, read once at startup (no reconcile loop - list
+  # only). Optional - zero objects is valid (falls back to no obfuscation), so this chart
+  # doesn't have to create one unconditionally the way router's RouterConfig requires.
+  - apiGroups: ["slipmesh.net"]
+    resources: ["roadwarriorconfigs"]
+    verbs: ["list"]
 ---
 # Shared server identity (one Secret, same key on every roadwarriors pod - unlike mesh's
 # per-node keys): a pod with no existing entry generates and persists one on first boot.
-# patch: same get_or_create_secret_key helper mesh uses - a create-race loser (409) whose
-# winner didn't happen to write the field falls through to a merge-patch, not just a re-read.
+# `resourceNames` can't scope `create` (the object doesn't exist yet at authorization time),
+# so that verb is necessarily unscoped; get/patch against an already-existing Secret are
+# scoped to roadwarriors-key specifically, so roadwarriors can't touch e.g. mesh's own keys.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -33,7 +40,11 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "create", "patch"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["roadwarriors-key"]
+    verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

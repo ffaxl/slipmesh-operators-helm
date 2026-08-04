@@ -1,0 +1,13 @@
+{{- if .Values.roadwarriors.obfuscation }}
+# Optional - unlike RouterConfig, zero RoadWarriorConfig objects is valid (roadwarriors falls
+# back to no device-level obfuscation), so this is only rendered when obfuscation is actually
+# configured. More than one existing object is still an error at read time (ambiguous).
+apiVersion: slipmesh.net/v1alpha1
+kind: RoadWarriorConfig
+metadata:
+  name: default
+  namespace: {{ include "slipmesh.namespace" . }}
+spec:
+  obfuscation:
+    {{- toYaml .Values.roadwarriors.obfuscation | nindent 4 }}
+{{- end }}

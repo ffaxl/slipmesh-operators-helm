@@ -14,10 +14,10 @@ image:
   # docker.io/ffaxl/talos:<component> tags, a given version never gets republished with
   # different content, so there's no need to force a re-pull on every restart.
   pullPolicy: IfNotPresent
-  mesh: ghcr.io/ffaxl/slipmesh-operators/mesh:v0.1.1
-  router: ghcr.io/ffaxl/slipmesh-operators/router:v0.1.1
-  nftables: ghcr.io/ffaxl/slipmesh-operators/nftables:v0.1.1
-  roadwarriors: ghcr.io/ffaxl/slipmesh-operators/roadwarriors:v0.1.1
+  mesh: ghcr.io/ffaxl/slipmesh-operators/mesh:v0.2.0
+  router: ghcr.io/ffaxl/slipmesh-operators/router:v0.2.0
+  nftables: ghcr.io/ffaxl/slipmesh-operators/nftables:v0.2.0
+  roadwarriors: ghcr.io/ffaxl/slipmesh-operators/roadwarriors:v0.2.0
 
 logLevel:
   mesh: "info,mesh=debug"
@@ -84,7 +84,9 @@ mesh:
   linkObfuscation: {}
 
 router:
-  bgpAS: 64512
+  # AS 64496-64511 is IANA-reserved specifically for documentation (RFC 5398), same idea as the
+  # RFC 5737/3849 example addresses used elsewhere here - never a real deployment's actual AS.
+  bgpAS: 64496
   # RouterNodes draw their OSPF/iBGP loopback address from this pool.
   pool: {}
 

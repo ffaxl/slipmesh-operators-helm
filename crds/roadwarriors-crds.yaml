@@ -106,3 +106,101 @@ spec:
     subresources:
       status: {}
 
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: roadwarriorconfigs.slipmesh.net
+spec:
+  group: slipmesh.net
+  names:
+    kind: RoadWarriorConfig
+    plural: roadwarriorconfigs
+    shortNames:
+    - rwcfg
+    singular: roadwarriorconfig
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for RoadWarriorConfigSpec via `CustomResource`
+        properties:
+          spec:
+            description: |-
+              Cluster-wide roadwarriors device settings - a single instance expected per namespace, same
+              convention as router's `RouterConfig`. No status/reconcile loop: roadwarriors reads this once
+              at startup.
+            properties:
+              obfuscation:
+                default: {}
+                description: |-
+                  Device-level AmneziaWG obfuscation for the whole roadwarriors interface - was previously 9
+                  separate `ROADWARRIORS_OBFUSCATION_*` env vars, hand-parsed one by one.
+                  `crate::mesh_types::Obfuscation` is already CRD-embeddable (`MeshLinkSpec.obfuscation`
+                  uses it the same way) - this reuses it instead of reimplementing the same config surface
+                  as raw env parsing.
+                properties:
+                  h1:
+                    format: int64
+                    maximum: 4294967295.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  h2:
+                    format: int64
+                    maximum: 4294967295.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  h3:
+                    format: int64
+                    maximum: 4294967295.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  h4:
+                    format: int64
+                    maximum: 4294967295.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  jc:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  jmax:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  jmin:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  s1:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                  s2:
+                    format: int32
+                    maximum: 65535.0
+                    minimum: 0.0
+                    nullable: true
+                    type: integer
+                type: object
+            type: object
+        required:
+        - spec
+        title: RoadWarriorConfig
+        type: object
+    served: true
+    storage: true
+

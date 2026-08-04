@@ -1,0 +1,10 @@
+# Exactly one RouterConfig object is required - router lists them at startup and crashes if it
+# finds zero or more than one (see RouterConfig's own CRD doc comment / router's
+# bgp_as_from_configs). Unlike RouterPool/BypassSource, this isn't optional or multi-instance.
+apiVersion: slipmesh.net/v1alpha1
+kind: RouterConfig
+metadata:
+  name: default
+  namespace: {{ include "slipmesh.namespace" . }}
+spec:
+  bgpAs: {{ .Values.router.bgpAS }}

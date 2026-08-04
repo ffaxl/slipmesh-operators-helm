@@ -72,6 +72,10 @@ rules:
   - apiGroups: ["slipmesh.net"]
     resources: ["roadwarriors"]
     verbs: ["list", "watch"]
+  # RouterConfig: cluster-wide BGP AS, read once at startup (no reconcile loop - list only).
+  - apiGroups: ["slipmesh.net"]
+    resources: ["routerconfigs"]
+    verbs: ["list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
